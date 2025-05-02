@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -11,6 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.nrp_231111017_satyagardaprasetyo.tugasin.utils.TaskDatabaseHelper
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -21,6 +23,7 @@ class DashboardActivity : AppCompatActivity() {
     private lateinit var tvDate: TextView
     private lateinit var rvTasks: RecyclerView
     private lateinit var bottomNavigation: BottomNavigationView
+    private lateinit var dbHelper: TaskDatabaseHelper
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,17 +37,36 @@ class DashboardActivity : AppCompatActivity() {
         tvDate = findViewById(R.id.tvDate)
         rvTasks = findViewById(R.id.rvTasks)
         bottomNavigation = findViewById(R.id.bottomNavigation)
+        dbHelper = TaskDatabaseHelper(this)
 
-        // Set current time and date
         updateTimeAndDate()
 
         updateTimeRunnable.run()
 
-        // Set up RecyclerView
-        setupTasksList()
-
-        // Set up bottom navigation
         setupBottomNavigation()
+
+        val credentials = getSavedCredentials()
+        if (credentials != null) {
+            val (email, password) = credentials
+            findViewById<TextView>(R.id.tvGreeting).text = "Halo, ${email.split("@")[0]}!"
+
+            lifecycleScope.launch {
+                dbHelper.syncTasksIfNeeded(
+                    this@DashboardActivity,
+                    email,
+                    password
+                )
+
+                val filteredTasks = dbHelper
+                    .getAllTasks(this@DashboardActivity)
+                    .filter { it.taskType.equals("Recently overdue", ignoreCase = true) }
+                    .toMutableList()
+
+                val adapter = TaskAdapter(filteredTasks) { task -> }
+                rvTasks.layoutManager = LinearLayoutManager(this@DashboardActivity)
+                rvTasks.adapter = adapter
+            }
+        }
     }
 
     private fun updateTimeAndDate() {
@@ -53,38 +75,22 @@ class DashboardActivity : AppCompatActivity() {
         val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
         tvTime.text = timeFormat.format(calendar.time)
 
-        // Format date (day of week, dd month yyyy)
         val dateFormat = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale("id", "ID"))
         tvDate.text = dateFormat.format(calendar.time)
     }
 
-    private fun setupTasksList() {
-        lifecycleScope.launch {
-            try {
-                val email = intent.getStringExtra("EMAIL") ?: ""
-                val password = intent.getStringExtra("PASSWORD") ?: ""
-                val response  = ApiClient.apiService.getTasks(mapOf("username" to email, "password" to password))
+    private fun getSavedCredentials(): Pair<String, String>? {
+        val db = dbHelper.readableDatabase
+        val cursor = db.query("credentials", null, null, null, null, null, null)
+        var result: Pair<String, String>? = null
 
-                val allTasks = response.tasks.values.flatten()
-                print(allTasks)
-
-                if (allTasks.isEmpty()) {
-                    Toast.makeText(this@DashboardActivity, "No tasks available", Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-
-                val adapter = TaskAdapter(allTasks) { task ->
-                    // Handle task click
-                }
-
-                rvTasks.layoutManager = LinearLayoutManager(this@DashboardActivity)
-                rvTasks.adapter = adapter
-
-            } catch (e: Exception) {
-                Log.e("API_ERROR", "Failed to fetch tasks", e)
-                Toast.makeText(this@DashboardActivity, "Failed to fetch tasks", Toast.LENGTH_SHORT).show()
-            }
+        if (cursor.moveToFirst()) {
+            val email = cursor.getString(cursor.getColumnIndexOrThrow("email"))
+            val password = cursor.getString(cursor.getColumnIndexOrThrow("password"))
+            result = Pair(email, password)
         }
+        cursor.close()
+        return result
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -102,16 +108,19 @@ class DashboardActivity : AppCompatActivity() {
                     // Already on home
                     return@setOnItemSelectedListener true
                 }
+
                 R.id.navigation_tasks -> {
                     // Navigate to tasks
                     // startActivity(Intent(this, TasksActivity::class.java))
                     return@setOnItemSelectedListener true
                 }
+
                 R.id.navigation_profile -> {
                     // Navigate to profile
                     // startActivity(Intent(this, ProfileActivity::class.java))
                     return@setOnItemSelectedListener true
                 }
+
                 else -> false
             }
         }

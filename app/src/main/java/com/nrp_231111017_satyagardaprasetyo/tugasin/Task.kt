@@ -4,5 +4,6 @@ data class Task(
     val name: String,
     val url: String,
     val course: String,
-    val date: String
+    val date: String,
+    val taskType: String,
 )
