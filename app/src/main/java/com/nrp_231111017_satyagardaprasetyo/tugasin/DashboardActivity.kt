@@ -1,10 +1,15 @@
 package com.nrp_231111017_satyagardaprasetyo.tugasin
 
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
 import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.ImageButton
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -13,7 +18,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.nrp_231111017_satyagardaprasetyo.tugasin.utils.TaskDatabaseHelper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -24,6 +31,8 @@ class DashboardActivity : AppCompatActivity() {
     private lateinit var rvTasks: RecyclerView
     private lateinit var bottomNavigation: BottomNavigationView
     private lateinit var dbHelper: TaskDatabaseHelper
+    private lateinit var syncBtn: ImageButton
+    private lateinit var adapter: TaskAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +47,7 @@ class DashboardActivity : AppCompatActivity() {
         rvTasks = findViewById(R.id.rvTasks)
         bottomNavigation = findViewById(R.id.bottomNavigation)
         dbHelper = TaskDatabaseHelper(this)
+        syncBtn = findViewById<ImageButton>(R.id.syncBtn)
 
         updateTimeAndDate()
 
@@ -45,26 +55,136 @@ class DashboardActivity : AppCompatActivity() {
 
         setupBottomNavigation()
 
+        val loadingOverlay = findViewById<FrameLayout>(R.id.loadingOverlay)
+        val tvNoTasksMessage = findViewById<TextView>(R.id.tvNoTasksMessage)
+
         val credentials = getSavedCredentials()
         if (credentials != null) {
             val (email, password) = credentials
             findViewById<TextView>(R.id.tvGreeting).text = "Halo, ${email.split("@")[0]}!"
 
-            lifecycleScope.launch {
-                dbHelper.syncTasksIfNeeded(
-                    this@DashboardActivity,
-                    email,
-                    password
-                )
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    loadingOverlay.visibility = View.VISIBLE
+                    rvTasks.visibility = View.GONE
 
-                val filteredTasks = dbHelper
-                    .getAllTasks(this@DashboardActivity)
-                    .filter { it.taskType.equals("Recently overdue", ignoreCase = true) }
-                    .toMutableList()
+                    val isSynced =
+                        dbHelper.syncTasksIfNeeded(this@DashboardActivity, email, password)
 
-                val adapter = TaskAdapter(filteredTasks) { task -> }
-                rvTasks.layoutManager = LinearLayoutManager(this@DashboardActivity)
-                rvTasks.adapter = adapter
+                    Log.d(
+                        "TASK_DEBUG",
+                        if (isSynced) "Tasks synced successfully" else "No new tasks to sync"
+                    )
+
+                    val allTasks = dbHelper.getAllTasks(this@DashboardActivity)
+                    Log.d("TASK_DEBUG", "Total tasks: ${allTasks.size}")
+
+                    val filteredTasks = allTasks
+                        .filter { it.taskType.equals("Recently overdue", ignoreCase = true) }
+                        .toMutableList()
+                    Log.d("TASK_DEBUG", "Filtered tasks: ${filteredTasks.size}")
+
+                    withContext(Dispatchers.Main) {
+                        if (filteredTasks.isEmpty()) {
+                            tvNoTasksMessage.visibility = View.VISIBLE
+                            rvTasks.visibility = View.GONE
+                        } else {
+                            adapter = TaskAdapter(filteredTasks, { task ->
+                            }, R.layout.item_task)
+                            rvTasks.layoutManager = LinearLayoutManager(this@DashboardActivity)
+                            rvTasks.adapter = adapter
+
+                            rvTasks.visibility = View.VISIBLE
+                            tvNoTasksMessage.visibility = View.GONE
+                        }
+
+                        loadingOverlay.visibility = View.GONE
+                    }
+                } catch (e: Exception) {
+                    Log.e("TASK_SYNC_ERROR", "Error syncing or loading tasks", e)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@DashboardActivity,
+                            "Failed to load tasks",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        loadingOverlay.visibility = View.GONE
+                        rvTasks.visibility = View.VISIBLE
+                    }
+                }
+            }
+
+            syncBtn.setOnClickListener {
+                val alertDialog = androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("Sync Tasks")
+                    .setMessage("Are you sure you want to sync tasks?")
+                    .setPositiveButton("Yes") { _, _ ->
+                        loadingOverlay.visibility = View.VISIBLE
+                        rvTasks.visibility = View.GONE
+
+                        lifecycleScope.launch {
+                            try {
+                                Log.d("TASK_SYNC", "Starting manual sync...")
+                                val isSynced =
+                                    dbHelper.syncTasksManual(
+                                        this@DashboardActivity,
+                                        email,
+                                        password
+                                    )
+
+                                Log.d(
+                                    "TASK_DEBUG",
+                                    if (isSynced) "Tasks synced successfully" else "No new tasks to sync"
+                                )
+
+                                withContext(Dispatchers.Main) {
+                                    loadingOverlay.visibility = View.GONE
+                                    Toast.makeText(
+                                        this@DashboardActivity,
+                                        if (isSynced) "Tasks synced successfully" else "No new tasks to sync",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+
+                                    if (isSynced) {
+                                        val updatedTasks =
+                                            dbHelper.getAllTasks(this@DashboardActivity)
+                                                .filter {
+                                                    it.taskType.equals(
+                                                        "Recently overdue",
+                                                        ignoreCase = true
+                                                    )
+                                                }
+                                                .toMutableList()
+
+                                        adapter = TaskAdapter(updatedTasks, { task ->
+                                        }, R.layout.item_task)
+                                        rvTasks.layoutManager =
+                                            LinearLayoutManager(this@DashboardActivity)
+                                        rvTasks.adapter = adapter
+
+                                        adapter.updateTasks(updatedTasks)
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e("TASK_SYNC_ERROR", "Error syncing tasks", e)
+                                withContext(Dispatchers.Main) {
+                                    loadingOverlay.visibility = View.GONE
+                                    Toast.makeText(
+                                        this@DashboardActivity,
+                                        "Failed to sync tasks",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
+                    }
+                    .setNegativeButton("No") { dialog, _ ->
+                        // Dismiss the dialog
+                        dialog.dismiss()
+                    }
+                    .create()
+
+                alertDialog.show()
             }
         }
     }
@@ -101,23 +221,25 @@ class DashboardActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupBottomNavigation() {
+    fun setupBottomNavigation() {
         bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.navigation_home -> {
                     // Already on home
+                    overridePendingTransition(0, 0)
                     return@setOnItemSelectedListener true
                 }
 
                 R.id.navigation_tasks -> {
-                    // Navigate to tasks
-                    // startActivity(Intent(this, TasksActivity::class.java))
+                    val intent = Intent(this, TasksActivity::class.java)
+                    startActivity(intent)
+                    overridePendingTransition(0, 0)
                     return@setOnItemSelectedListener true
                 }
 
                 R.id.navigation_profile -> {
-                    // Navigate to profile
-                    // startActivity(Intent(this, ProfileActivity::class.java))
+                    startActivity(Intent(this, ProfileActivity::class.java))
+                    overridePendingTransition(0,0)
                     return@setOnItemSelectedListener true
                 }
 

@@ -20,7 +20,7 @@
             android:id="@+id/profileSection"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            app:layout_constraintEnd_toStartOf="@+id/ivNotification"
+            app:layout_constraintEnd_toStartOf="@+id/btnSync"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
@@ -57,38 +57,38 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
 
 
-            <ImageView
-                android:id="@+id/ivNotification"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="@drawable/circle_white_background"
-                android:padding="6dp"
-                android:src="@drawable/notif"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@+id/profileSection"
-                app:tint="@color/tugas_blue" />
+        <ImageButton
+            android:id="@+id/syncBtn"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@drawable/sync"
+            android:padding="6dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/profileSection"
+            app:tint="@color/tugas_blue"
+            android:contentDescription="Sync manual" />
 
-            <TextView
-                android:id="@+id/tvTime"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:text="20:59"
-                android:textColor="@color/white"
-                android:textSize="32sp"
-                android:textStyle="bold"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/profileSection" />
+        <TextView
+            android:id="@+id/tvTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="20:59"
+            android:textColor="@color/white"
+            android:textSize="32sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/profileSection" />
 
-            <TextView
-                android:id="@+id/tvDate"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Selasa, 29 April 2024"
-                android:textColor="@color/white"
-                android:textSize="14sp"
-                app:layout_constraintStart_toStartOf="@+id/tvTime"
-                app:layout_constraintTop_toBottomOf="@+id/tvTime" />
+        <TextView
+            android:id="@+id/tvDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Selasa, 29 April 2024"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            app:layout_constraintStart_toStartOf="@+id/tvTime"
+            app:layout_constraintTop_toBottomOf="@+id/tvTime" />
 
         <ImageView
             android:id="@+id/ivMascot"
@@ -98,40 +98,41 @@
             android:scaleType="centerCrop"
             android:src="@drawable/mascot_wave"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/ivNotification" />
-        </androidx.constraintlayout.widget.ConstraintLayout>
+            app:layout_constraintTop_toBottomOf="@+id/syncBtn" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <TextView
-            android:id="@+id/tvOverdueTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="16dp"
-            android:text="Recently Overdue"
-            android:textColor="@color/black"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/headerLayout" />
+    <TextView
+        android:id="@+id/tvOverdueTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:text="Recently Overdue"
+        android:textColor="@color/black"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/headerLayout" />
 
-        <TextView
-            android:id="@+id/tvOverdueCount"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/circle_red_background"
-            android:gravity="center"
-            android:text="!"
-            android:textColor="@color/white"
-            android:textSize="12sp"
-            app:layout_constraintBottom_toBottomOf="@+id/tvOverdueTitle"
-            app:layout_constraintStart_toEndOf="@+id/tvOverdueTitle"
-            app:layout_constraintTop_toTopOf="@+id/tvOverdueTitle" />
+    <TextView
+        android:id="@+id/tvOverdueCount"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/circle_red_background"
+        android:gravity="center"
+        android:text="!"
+        android:textColor="@color/white"
+        android:textSize="12sp"
+        app:layout_constraintBottom_toBottomOf="@+id/tvOverdueTitle"
+        app:layout_constraintStart_toEndOf="@+id/tvOverdueTitle"
+        app:layout_constraintTop_toTopOf="@+id/tvOverdueTitle" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvTasks"
         android:layout_width="match_parent"
         android:layout_height="0dp"
+        android:visibility="gone"
         android:layout_marginTop="8dp"
         android:clipToPadding="false"
         android:paddingBottom="8dp"
@@ -141,14 +142,46 @@
         tools:layout_editor_absoluteX="-26dp"
         tools:listitem="@layout/item_task" />
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-            android:id="@+id/bottomNavigation"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@color/white"
-            app:itemIconTint="@drawable/bottom_nav_item_color"
-            app:itemTextColor="@drawable/bottom_nav_item_color"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:menu="@menu/bottom_navigation_menu" />
+    <TextView
+        android:id="@+id/tvNoTasksMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Tidak ada Tugas Overdue, Selamat Ya"
+        android:textColor="@color/black"
+        android:layout_marginStart="16dp"
+        android:textSize="16sp"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tvOverdueTitle"
+        android:layout_marginTop="16dp"/>
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNavigation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/white"
+        app:itemIconTint="@drawable/bottom_nav_item_color"
+        app:itemTextColor="@drawable/bottom_nav_item_color"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:menu="@menu/bottom_navigation_menu" />
+
+    <FrameLayout
+        android:id="@+id/loadingOverlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="#80000000"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ProgressBar
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_gravity="center"
+            style="?android:attr/progressBarStyleLarge" />
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

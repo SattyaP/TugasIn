@@ -8,7 +8,8 @@ import androidx.recyclerview.widget.RecyclerView
 
 class TaskAdapter(
     private var tasks: MutableList<Task>,
-    private val onTaskClick: (Task) -> Unit
+    private val onTaskClick: (Task) -> Unit,
+    private val itemLayoutId: Int = R.layout.item_task
 ) : RecyclerView.Adapter<TaskAdapter.TaskViewHolder>() {
 
     class TaskViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -19,8 +20,7 @@ class TaskAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TaskViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_task, parent, false)
+        val view = LayoutInflater.from(parent.context).inflate(itemLayoutId, parent, false)
         return TaskViewHolder(view)
     }
 
