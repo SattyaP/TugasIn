@@ -13,7 +13,7 @@ object ApiClient {
         .build()
 
     private val retrofit = Retrofit.Builder()
-        .baseUrl("https://m2mmx9cp-3000.asse.devtunnels.ms/")
+        .baseUrl("https://dw8cqwgq-3000.asse.devtunnels.ms/")
         .client(okHttpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()

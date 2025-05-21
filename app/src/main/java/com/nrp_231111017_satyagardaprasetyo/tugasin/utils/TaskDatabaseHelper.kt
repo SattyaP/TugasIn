@@ -12,6 +12,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.threeten.bp.LocalDateTime
+import org.threeten.bp.format.DateTimeFormatter
+import java.util.Locale
 
 class TaskDatabaseHelper(context: Context) : SQLiteOpenHelper(
     context, DATABASE_NAME, null, DATABASE_VERSION
@@ -28,13 +31,6 @@ class TaskDatabaseHelper(context: Context) : SQLiteOpenHelper(
         const val COLUMN_DATE = "date"
         const val TASK_TYPE = "taskType"
 
-        const val COLUMN_COURSE_CODE = "courseCode"
-        const val COLUMN_TITLE = "title"
-        const val COLUMN_TIME = "time"
-        const val COLUMN_DATE_TIME = "dateTime"
-        const val COLUMN_CREDENTIALS_ID = "id"
-        const val COLUMN_EMAIL = "email"
-        const val COLUMN_PASSWORD = "password"
         const val TABLE_CREDENTIALS = "credentials"
     }
 
@@ -73,8 +69,7 @@ class TaskDatabaseHelper(context: Context) : SQLiteOpenHelper(
         val dbHelper = TaskDatabaseHelper(context)
         val db = dbHelper.writableDatabase
 
-        val parts = task.course.split(" ", limit = 2)
-        val course = if (parts.size > 1) parts[1].trim() else ""
+        val course = task.course
 
         // Correctly assign the taskType to the proper column
         val values = android.content.ContentValues().apply {
@@ -102,6 +97,7 @@ class TaskDatabaseHelper(context: Context) : SQLiteOpenHelper(
                 val taskJson = taskArray.getJSONObject(i)
 
                 val task = Task(
+                    id = 0,
                     name = taskJson.getString("name"),
                     url = taskJson.getString("url"),
                     course = taskJson.getString("course"),
@@ -123,6 +119,7 @@ class TaskDatabaseHelper(context: Context) : SQLiteOpenHelper(
 
         while (cursor.moveToNext()) {
             val task = Task(
+                id = cursor.getInt(cursor.getColumnIndexOrThrow("id")),
                 name = cursor.getString(cursor.getColumnIndexOrThrow(TaskDatabaseHelper.COLUMN_NAME)),
                 url = cursor.getString(cursor.getColumnIndexOrThrow(TaskDatabaseHelper.COLUMN_URL)),
                 course = cursor.getString(cursor.getColumnIndexOrThrow(TaskDatabaseHelper.COLUMN_COURSE)),
@@ -176,6 +173,9 @@ class TaskDatabaseHelper(context: Context) : SQLiteOpenHelper(
                     }
                     return true
                 } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Failed to sync tasks", Toast.LENGTH_SHORT).show()
+                    }
                     Log.e("API_ERROR", "Error: ${response.code()} ${response.message()}")
                 }
             } catch (e: Exception) {
@@ -183,6 +183,60 @@ class TaskDatabaseHelper(context: Context) : SQLiteOpenHelper(
             }
         }
         return false
+    }
+
+    fun getDueTasks(): List<Task> {
+        val db = readableDatabase
+        val taskList = mutableListOf<Task>()
+        val cursor = db.query("tasks", null, null, null, null, null, null)
+
+        val formatter = DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.ENGLISH)
+        val now = LocalDateTime.now()
+
+        if (cursor.moveToFirst()) {
+            do {
+                val dateString = cursor.getString(cursor.getColumnIndexOrThrow("date"))
+                try {
+                    val taskDate = LocalDateTime.parse(dateString, formatter)
+
+                    if (!taskDate.isAfter(now)) {
+                        val task = Task(
+                            id = cursor.getInt(cursor.getColumnIndexOrThrow("id")),
+                            name = cursor.getString(cursor.getColumnIndexOrThrow("name")),
+                            url = cursor.getString(cursor.getColumnIndexOrThrow("url")),
+                            course = cursor.getString(cursor.getColumnIndexOrThrow("course")),
+                            date = dateString,
+                            taskType = cursor.getString(cursor.getColumnIndexOrThrow("taskType"))
+                        )
+                        taskList.add(task)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            } while (cursor.moveToNext())
+        }
+
+        cursor.close()
+        return taskList
+    }
+
+    fun getTaskById(id: Int): Task? {
+        val db = readableDatabase
+        val cursor = db.query("tasks", null, "id = ?", arrayOf(id.toString()), null, null, null)
+        return if (cursor.moveToFirst()) {
+            Task(
+                id = cursor.getInt(cursor.getColumnIndexOrThrow("id")),
+                name = cursor.getString(cursor.getColumnIndexOrThrow("name")),
+                url = cursor.getString(cursor.getColumnIndexOrThrow("url")),
+                course = cursor.getString(cursor.getColumnIndexOrThrow("course")),
+                date = cursor.getString(cursor.getColumnIndexOrThrow("date")),
+                taskType = cursor.getString(cursor.getColumnIndexOrThrow("taskType"))
+            )
+        } else {
+            null
+        }.also {
+            cursor.close()
+        }
     }
 
     fun clearTasks(context: Context) {
@@ -213,8 +267,6 @@ class TaskDatabaseHelper(context: Context) : SQLiteOpenHelper(
                 if (response.isSuccessful) {
                     val tasksResponse = response.body()
                     if (tasksResponse != null) {
-                        // Log the tasks response
-                        Log.d("API_RESPONSE", "Tasks: ${tasksResponse.tasks}")
 
                         // Process the tasks
                         tasksResponse.tasks.forEach { (taskType, taskList) ->

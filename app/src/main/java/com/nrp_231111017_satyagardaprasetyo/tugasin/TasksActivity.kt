@@ -1,35 +1,57 @@
 package com.nrp_231111017_satyagardaprasetyo.tugasin
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.lifecycle.lifecycleScope
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.jakewharton.threetenabp.AndroidThreeTen
 import com.nrp_231111017_satyagardaprasetyo.tugasin.utils.TaskDatabaseHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.threeten.bp.LocalDate
+import org.threeten.bp.format.DateTimeFormatter
+import org.threeten.bp.temporal.ChronoUnit
+import java.util.Locale
+
 
 class TasksActivity : AppCompatActivity() {
     private lateinit var rvNext7Days: RecyclerView
     private lateinit var rvNext30Days: RecyclerView
     private lateinit var rvOverdue: RecyclerView
     private lateinit var rvFuture: RecyclerView
+    private lateinit var rvToday: RecyclerView
     private lateinit var bottomNavigation: BottomNavigationView
     private lateinit var dbHelper: TaskDatabaseHelper
     private lateinit var syncBtn: ImageButton
     private lateinit var adapter: TaskAdapter
+    private lateinit var reminderCard: CardView
+    private lateinit var tvReminderSubject: TextView
+    private lateinit var tvReminderDate: TextView
+    private lateinit var tvReminderTime: TextView
+    private lateinit var tvReminderTitle: TextView
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AndroidThreeTen.init(this)
         setContentView(R.layout.activity_tasks)
 
         supportActionBar?.hide()
@@ -42,6 +64,13 @@ class TasksActivity : AppCompatActivity() {
         rvNext30Days = findViewById(R.id.rvNext30Days)
         rvOverdue = findViewById(R.id.rvOverdue)
         rvFuture = findViewById(R.id.rvFuture)
+        rvToday = findViewById(R.id.rvToday)
+
+        reminderCard = findViewById<CardView>(R.id.upcomingReminderCard)
+        tvReminderSubject = findViewById<TextView>(R.id.tvReminderSubject)
+        tvReminderTitle = findViewById<TextView>(R.id.tvReminderTitle)
+        tvReminderDate = findViewById<TextView>(R.id.tvReminderDate)
+        tvReminderTime = findViewById<TextView>(R.id.tvReminderTime)
 
         setupBottomNavigation()
 
@@ -63,6 +92,13 @@ class TasksActivity : AppCompatActivity() {
 
             alertDialog.show()
         }
+
+//        TEST
+//        val btn = findViewById<Button>(R.id.btnTestNotification)
+//        btn.setOnClickListener {
+//            val request = OneTimeWorkRequestBuilder<ReminderWorker>().build()
+//            WorkManager.getInstance(applicationContext).enqueue(request)
+//        }
     }
 
     private fun loadCredentialsAndTasks(loadingOverlay: FrameLayout) {
@@ -96,6 +132,12 @@ class TasksActivity : AppCompatActivity() {
                                 ignoreCase = true
                             )
                         },
+                        "Today" to allTasks.filter {
+                            it.taskType.equals(
+                                "Today",
+                                ignoreCase = true
+                            )
+                        },
                         "Next 30 days" to allTasks.filter {
                             it.taskType.equals(
                                 "Next 30 days",
@@ -113,6 +155,7 @@ class TasksActivity : AppCompatActivity() {
                     // Updating UI must be done on the main thread
                     withContext(Dispatchers.Main) {
                         updateRecyclerView(rvOverdue, taskLists["Recently overdue"] ?: emptyList())
+                        updateRecyclerView(rvToday, taskLists["Today"] ?: emptyList())
                         updateRecyclerView(rvNext7Days, taskLists["Next 7 days"] ?: emptyList())
                         updateRecyclerView(rvNext30Days, taskLists["Next 30 days"] ?: emptyList())
                         updateRecyclerView(rvFuture, taskLists["Future"] ?: emptyList())
@@ -120,6 +163,9 @@ class TasksActivity : AppCompatActivity() {
                         // Hide the loading overlay after the UI updates
                         loadingOverlay.visibility = View.GONE
                     }
+
+                    checkUpcomingReminders()
+
                 } catch (e: Exception) {
                     Log.e("TASK_SYNC_ERROR", "Error loading tasks", e)
                     withContext(Dispatchers.Main) {
@@ -138,7 +184,7 @@ class TasksActivity : AppCompatActivity() {
 
     private fun handleSyncTasks(loadingOverlay: FrameLayout) {
         loadingOverlay.visibility = View.VISIBLE
-
+        disableMenu()
         lifecycleScope.launch {
             try {
                 Log.d("TASK_SYNC", "Starting manual sync...")
@@ -165,6 +211,8 @@ class TasksActivity : AppCompatActivity() {
                         loadCredentialsAndTasks(loadingOverlay)
                     }
                 }
+
+                enableMenu()
             } catch (e: Exception) {
                 Log.e("TASK_SYNC_ERROR", "Error syncing tasks", e)
                 withContext(Dispatchers.Main) {
@@ -209,18 +257,18 @@ class TasksActivity : AppCompatActivity() {
             when (item.itemId) {
                 R.id.navigation_home -> {
                     startActivity(Intent(this, DashboardActivity::class.java))
-                    overridePendingTransition(0,0)
+                    overridePendingTransition(0, 0)
                     return@setOnItemSelectedListener true
                 }
 
                 R.id.navigation_tasks -> {
-                    overridePendingTransition(0,0)
+                    overridePendingTransition(0, 0)
                     return@setOnItemSelectedListener true
                 }
 
                 R.id.navigation_profile -> {
                     startActivity(Intent(this, ProfileActivity::class.java))
-                    overridePendingTransition(0,0)
+                    overridePendingTransition(0, 0)
                     return@setOnItemSelectedListener true
                 }
 
@@ -228,5 +276,93 @@ class TasksActivity : AppCompatActivity() {
             }
         }
         bottomNavigation.selectedItemId = R.id.navigation_tasks
+    }
+
+    private val updateUiReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            checkUpcomingReminders()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        LocalBroadcastManager.getInstance(this)
+            .registerReceiver(updateUiReceiver, IntentFilter("com.tugasin.UPDATE_UI"))
+        checkUpcomingReminders()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(updateUiReceiver)
+    }
+
+    private fun checkUpcomingReminders() {
+        val allTasks = dbHelper.getAllTasks(this)
+        val dateFormatter = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
+        val currentYear = LocalDate.now().year
+        val currentDate = LocalDate.now()
+
+        val upcomingReminders = allTasks.filter { task ->
+            try {
+                val datePart = task.date.split(',')[0].trim()
+                val fullDateStr = "$datePart $currentYear"
+                val reminderDate = LocalDate.parse(fullDateStr, dateFormatter)
+                val daysUntilDue = ChronoUnit.DAYS.between(currentDate, reminderDate)
+
+                daysUntilDue <= 0 || daysUntilDue in listOf(1L, 3L)
+            } catch (e: Exception) {
+                Log.e("ReminderDebug", "Error parsing task '${task.date}': ${e.message}")
+                false
+            }
+        }.sortedBy { task ->
+            try {
+                val datePart = task.date.split(',')[0].trim()
+                val fullDateStr = "$datePart $currentYear"
+                LocalDate.parse(fullDateStr, dateFormatter)
+            } catch (e: Exception) {
+                LocalDate.MAX
+            }
+        }
+
+        if (upcomingReminders.isNotEmpty()) {
+            val firstReminder = upcomingReminders.first()
+            try {
+                val datePart = firstReminder.date.split(',')[0].trim()
+                val timePart = firstReminder.date.split(',')[1].trim()
+                val fullDateStr = "$datePart $currentYear"
+                val reminderDate = LocalDate.parse(fullDateStr, dateFormatter)
+                val daysUntilDue = ChronoUnit.DAYS.between(currentDate, reminderDate)
+
+                tvReminderTitle.text = "Upcoming Reminder (H-$daysUntilDue)"
+                tvReminderSubject.text = firstReminder.name
+                tvReminderDate.text = datePart
+                tvReminderTime.text = timePart
+            } catch (e: Exception) {
+                Log.e("ReminderDebug", "Error displaying reminder: ${e.message}")
+            }
+        } else {
+            tvReminderTitle.text = "No Upcoming Reminders"
+            tvReminderDate.text = "No Date"
+            tvReminderTime.text = "No Time"
+            tvReminderSubject.text = "No Task"
+        }
+    }
+
+    fun disableMenu() {
+        val menu = bottomNavigation.menu
+        for (i in 0 until menu.size()) {
+            menu.getItem(i).isEnabled = false
+        }
+
+        syncBtn.isEnabled = false
+    }
+
+    fun enableMenu() {
+        val menu = bottomNavigation.menu
+        for (i in 0 until menu.size()) {
+            menu.getItem(i).isEnabled = true
+        }
+
+        syncBtn.isEnabled = true
     }
 }

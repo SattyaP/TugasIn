@@ -1,5 +1,6 @@
 package com.nrp_231111017_satyagardaprasetyo.tugasin
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,7 +10,9 @@ import androidx.recyclerview.widget.RecyclerView
 class TaskAdapter(
     private var tasks: MutableList<Task>,
     private val onTaskClick: (Task) -> Unit,
-    private val itemLayoutId: Int = R.layout.item_task
+    private val itemLayoutId: Int = R.layout.item_task,
+    private val onArrowClick: (String) -> Unit = {},
+    private val isDashboard: Boolean = false
 ) : RecyclerView.Adapter<TaskAdapter.TaskViewHolder>() {
 
     class TaskViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -33,9 +36,19 @@ class TaskAdapter(
         holder.tvDate.text = task.date.split(',')[0].trim()
         holder.tvTime.text = task.date.split(',')[1].trim()
 
-        holder.itemView.setOnClickListener {
-            onTaskClick(task)
+        if (!isDashboard) {
+            holder.itemView.setOnClickListener {
+                onTaskClick(task)
+            }
         }
+
+        if (isDashboard) {
+            val arrowView = holder.itemView.findViewById<View>(R.id.arrowContainer)
+            arrowView.setOnClickListener {
+                onArrowClick(task.url)
+            }
+        }
+
     }
 
     fun updateTasks(newTasks: List<Task>) {

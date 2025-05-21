@@ -1,6 +1,7 @@
 package com.nrp_231111017_satyagardaprasetyo.tugasin
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -13,10 +14,12 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.color.DynamicColors
 import com.nrp_231111017_satyagardaprasetyo.tugasin.utils.TaskDatabaseHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -37,6 +40,8 @@ class DashboardActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_dashboard)
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+        DynamicColors.applyToActivitiesIfAvailable(application)
 
         // Hide action bar
         supportActionBar?.hide()
@@ -67,6 +72,7 @@ class DashboardActivity : AppCompatActivity() {
                 try {
                     loadingOverlay.visibility = View.VISIBLE
                     rvTasks.visibility = View.GONE
+                    disableMenu()
 
                     val isSynced =
                         dbHelper.syncTasksIfNeeded(this@DashboardActivity, email, password)
@@ -89,8 +95,16 @@ class DashboardActivity : AppCompatActivity() {
                             tvNoTasksMessage.visibility = View.VISIBLE
                             rvTasks.visibility = View.GONE
                         } else {
-                            adapter = TaskAdapter(filteredTasks, { task ->
-                            }, R.layout.item_task)
+                            adapter = TaskAdapter(
+                                filteredTasks,
+                                { task ->  },
+                                R.layout.item_task,
+                                { url ->
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                    startActivity(intent)
+                                },
+                                isDashboard = true
+                            )
                             rvTasks.layoutManager = LinearLayoutManager(this@DashboardActivity)
                             rvTasks.adapter = adapter
 
@@ -99,6 +113,7 @@ class DashboardActivity : AppCompatActivity() {
                         }
 
                         loadingOverlay.visibility = View.GONE
+                        enableMenu()
                     }
                 } catch (e: Exception) {
                     Log.e("TASK_SYNC_ERROR", "Error syncing or loading tasks", e)
@@ -121,6 +136,7 @@ class DashboardActivity : AppCompatActivity() {
                     .setPositiveButton("Yes") { _, _ ->
                         loadingOverlay.visibility = View.VISIBLE
                         rvTasks.visibility = View.GONE
+                        disableMenu()
 
                         lifecycleScope.launch {
                             try {
@@ -139,6 +155,8 @@ class DashboardActivity : AppCompatActivity() {
 
                                 withContext(Dispatchers.Main) {
                                     loadingOverlay.visibility = View.GONE
+                                    rvTasks.visibility = View.VISIBLE
+
                                     Toast.makeText(
                                         this@DashboardActivity,
                                         if (isSynced) "Tasks synced successfully" else "No new tasks to sync",
@@ -146,25 +164,15 @@ class DashboardActivity : AppCompatActivity() {
                                     ).show()
 
                                     if (isSynced) {
-                                        val updatedTasks =
-                                            dbHelper.getAllTasks(this@DashboardActivity)
-                                                .filter {
-                                                    it.taskType.equals(
-                                                        "Recently overdue",
-                                                        ignoreCase = true
-                                                    )
-                                                }
-                                                .toMutableList()
-
-                                        adapter = TaskAdapter(updatedTasks, { task ->
-                                        }, R.layout.item_task)
-                                        rvTasks.layoutManager =
-                                            LinearLayoutManager(this@DashboardActivity)
-                                        rvTasks.adapter = adapter
+                                        val updatedTasks = dbHelper.getAllTasks(this@DashboardActivity)
+                                            .filter { it.taskType.equals("Recently overdue", ignoreCase = true) }
+                                            .toMutableList()
 
                                         adapter.updateTasks(updatedTasks)
                                     }
                                 }
+
+                                enableMenu()
                             } catch (e: Exception) {
                                 Log.e("TASK_SYNC_ERROR", "Error syncing tasks", e)
                                 withContext(Dispatchers.Main) {
@@ -249,5 +257,23 @@ class DashboardActivity : AppCompatActivity() {
 
         // Set home as selected
         bottomNavigation.selectedItemId = R.id.navigation_home
+    }
+
+    fun disableMenu() {
+        val menu = bottomNavigation.menu
+        for (i in 0 until menu.size()) {
+            menu.getItem(i).isEnabled = false
+        }
+
+        syncBtn.isEnabled = false
+    }
+
+    fun enableMenu() {
+        val menu = bottomNavigation.menu
+        for (i in 0 until menu.size()) {
+            menu.getItem(i).isEnabled = true
+        }
+
+        syncBtn.isEnabled = true
     }
 }
