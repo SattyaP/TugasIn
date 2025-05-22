@@ -18,6 +18,9 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.color.DynamicColors
 import com.nrp_231111017_satyagardaprasetyo.tugasin.utils.TaskDatabaseHelper
@@ -26,6 +29,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.TimeUnit
+import android.app.Application
+import com.jakewharton.threetenabp.AndroidThreeTen
 
 class DashboardActivity : AppCompatActivity() {
 
@@ -42,6 +48,8 @@ class DashboardActivity : AppCompatActivity() {
         setContentView(R.layout.activity_dashboard)
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         DynamicColors.applyToActivitiesIfAvailable(application)
+
+        AndroidThreeTen.init(this)
 
         // Hide action bar
         supportActionBar?.hide()
@@ -195,6 +203,16 @@ class DashboardActivity : AppCompatActivity() {
                 alertDialog.show()
             }
         }
+
+        val workRequest = PeriodicWorkRequestBuilder<ReminderWorker>(
+            1, TimeUnit.MINUTES
+        ).build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "ReminderWorker",
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
     }
 
     private fun updateTimeAndDate() {
@@ -233,7 +251,6 @@ class DashboardActivity : AppCompatActivity() {
         bottomNavigation.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.navigation_home -> {
-                    // Already on home
                     overridePendingTransition(0, 0)
                     return@setOnItemSelectedListener true
                 }

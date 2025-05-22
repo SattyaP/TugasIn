@@ -30,7 +30,7 @@ import org.threeten.bp.LocalDate
 import org.threeten.bp.format.DateTimeFormatter
 import org.threeten.bp.temporal.ChronoUnit
 import java.util.Locale
-
+import android.app.Application
 
 class TasksActivity : AppCompatActivity() {
     private lateinit var rvNext7Days: RecyclerView
@@ -47,7 +47,7 @@ class TasksActivity : AppCompatActivity() {
     private lateinit var tvReminderDate: TextView
     private lateinit var tvReminderTime: TextView
     private lateinit var tvReminderTitle: TextView
-
+    private lateinit var updateUIReceiver: BroadcastReceiver
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,26 +99,33 @@ class TasksActivity : AppCompatActivity() {
 //            val request = OneTimeWorkRequestBuilder<ReminderWorker>().build()
 //            WorkManager.getInstance(applicationContext).enqueue(request)
 //        }
+
+        updateUIReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                Log.d("TasksActivity", "Received UPDATE_UI broadcast")
+                loadCredentialsAndTasks(findViewById(R.id.loadingOverlay))
+            }
+        }
+        LocalBroadcastManager.getInstance(this).registerReceiver(
+            updateUIReceiver,
+            IntentFilter("com.tugasin.UPDATE_UI")
+        )
     }
 
     private fun loadCredentialsAndTasks(loadingOverlay: FrameLayout) {
         val credentials = getSavedCredentials()
         if (credentials != null) {
             val (email, password) = credentials
-            // Set the greeting text on the main thread
             findViewById<TextView>(R.id.tvGreeting).text = "Halo, ${email.split("@")[0]}!"
 
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    // Start the loading overlay visibility on the main thread
                     withContext(Dispatchers.Main) {
                         loadingOverlay.visibility = View.VISIBLE
                     }
 
-                    // Load tasks in the background thread
                     val allTasks = dbHelper.getAllTasks(this@TasksActivity)
 
-                    // Filter tasks by type in the background
                     val taskLists = mapOf(
                         "Recently overdue" to allTasks.filter {
                             it.taskType.equals(
@@ -152,7 +159,6 @@ class TasksActivity : AppCompatActivity() {
                         }
                     )
 
-                    // Updating UI must be done on the main thread
                     withContext(Dispatchers.Main) {
                         updateRecyclerView(rvOverdue, taskLists["Recently overdue"] ?: emptyList())
                         updateRecyclerView(rvToday, taskLists["Today"] ?: emptyList())
@@ -160,7 +166,6 @@ class TasksActivity : AppCompatActivity() {
                         updateRecyclerView(rvNext30Days, taskLists["Next 30 days"] ?: emptyList())
                         updateRecyclerView(rvFuture, taskLists["Future"] ?: emptyList())
 
-                        // Hide the loading overlay after the UI updates
                         loadingOverlay.visibility = View.GONE
                     }
 
@@ -169,7 +174,6 @@ class TasksActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Log.e("TASK_SYNC_ERROR", "Error loading tasks", e)
                     withContext(Dispatchers.Main) {
-                        // Hide the loading overlay on the main thread if an error occurs
                         loadingOverlay.visibility = View.GONE
                         Toast.makeText(
                             this@TasksActivity,
@@ -226,13 +230,11 @@ class TasksActivity : AppCompatActivity() {
 
     private fun updateRecyclerView(recyclerView: RecyclerView, tasks: List<Task>) {
         if (recyclerView.adapter == null) {
-            // Create a new adapter if it's not already set
             adapter = TaskAdapter(tasks.toMutableList(), { task -> }, R.layout.fragment_tasks)
             recyclerView.layoutManager =
                 LinearLayoutManager(this@TasksActivity, LinearLayoutManager.HORIZONTAL, false)
             recyclerView.adapter = adapter
         } else {
-            // Update the existing adapter's data
             (recyclerView.adapter as TaskAdapter).updateTasks(tasks)
         }
         recyclerView.visibility = View.VISIBLE
@@ -364,5 +366,10 @@ class TasksActivity : AppCompatActivity() {
         }
 
         syncBtn.isEnabled = true
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(updateUIReceiver)
     }
 }

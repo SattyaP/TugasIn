@@ -12,9 +12,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.threeten.bp.LocalDate
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.format.DateTimeFormatter
 import java.util.Locale
+import android.app.Application
+import com.jakewharton.threetenabp.AndroidThreeTen
 
 class TaskDatabaseHelper(context: Context) : SQLiteOpenHelper(
     context, DATABASE_NAME, null, DATABASE_VERSION
@@ -190,14 +193,17 @@ class TaskDatabaseHelper(context: Context) : SQLiteOpenHelper(
         val taskList = mutableListOf<Task>()
         val cursor = db.query("tasks", null, null, null, null, null, null)
 
-        val formatter = DateTimeFormatter.ofPattern("d MMM, HH:mm", Locale.ENGLISH)
+        val formatter = DateTimeFormatter.ofPattern("d MMM HH:mm yyyy", Locale.ENGLISH)
         val now = LocalDateTime.now()
 
         if (cursor.moveToFirst()) {
             do {
                 val dateString = cursor.getString(cursor.getColumnIndexOrThrow("date"))
+                val normalized = dateString.replace(".", ":").replace(",", "") // → "23 May 00:00"
+                val fullDateString = "$normalized ${LocalDate.now().year}"
+
                 try {
-                    val taskDate = LocalDateTime.parse(dateString, formatter)
+                    val taskDate = LocalDateTime.parse(fullDateString, formatter)
 
                     if (!taskDate.isAfter(now)) {
                         val task = Task(

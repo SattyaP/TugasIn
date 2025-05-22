@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import android.app.Application
+import com.jakewharton.threetenabp.AndroidThreeTen
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
@@ -30,16 +32,18 @@ class ReminderWorker(
 //        TEST
 //        val task = Task(
 //            id = 25,
-//            name = "Sample Task",
+//            name = "Widget Implementation",
 //            url = "https://example.com",
-//            course = "Sample Course",
+//            course = "Pemrograman Perangkat Bergerak 1",
 //            date = "2023-10-10 10:00",
-//            taskType = "Assignment"
+//            taskType = "Recently overdue"
 //        )
 //        showNotification(task)
 
         for (task in dueTasks) {
+            Log.d("ReminderWorker", "Task: ${task.name}")
             showNotification(task)
+            Thread.sleep(1000)
         }
 
         val intent = Intent("com.tugasin.UPDATE_UI")

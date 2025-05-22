@@ -7,13 +7,13 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
     private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(90, TimeUnit.SECONDS) // connection timeout
-        .readTimeout(90, TimeUnit.SECONDS)    // read timeout
-        .writeTimeout(90, TimeUnit.SECONDS)   // write timeout
+        .connectTimeout(90, TimeUnit.SECONDS)
+        .readTimeout(90, TimeUnit.SECONDS)
+        .writeTimeout(90, TimeUnit.SECONDS)
         .build()
 
     private val retrofit = Retrofit.Builder()
-        .baseUrl("https://dw8cqwgq-3000.asse.devtunnels.ms/")
+        .baseUrl("https://m2mmx9cp-3000.asse.devtunnels.ms/")
         .client(okHttpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
