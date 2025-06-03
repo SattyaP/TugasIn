@@ -205,12 +205,12 @@ class DashboardActivity : AppCompatActivity() {
         }
 
         val workRequest = PeriodicWorkRequestBuilder<ReminderWorker>(
-            1, TimeUnit.MINUTES
+            1, TimeUnit.DAYS
         ).build()
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "ReminderWorker",
-            ExistingPeriodicWorkPolicy.KEEP,
+            ExistingPeriodicWorkPolicy.REPLACE,
             workRequest
         )
     }
