@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.Manifest
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
@@ -31,7 +32,21 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 import android.app.Application
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.jakewharton.threetenabp.AndroidThreeTen
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import okio.IOException
+import org.json.JSONObject
 
 class DashboardActivity : AppCompatActivity() {
 
@@ -42,6 +57,9 @@ class DashboardActivity : AppCompatActivity() {
     private lateinit var dbHelper: TaskDatabaseHelper
     private lateinit var syncBtn: ImageButton
     private lateinit var adapter: TaskAdapter
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var tvLocation: TextView
+    private val LOCATION_PERMISSION_REQUEST = 1001
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,12 +79,17 @@ class DashboardActivity : AppCompatActivity() {
         bottomNavigation = findViewById(R.id.bottomNavigation)
         dbHelper = TaskDatabaseHelper(this)
         syncBtn = findViewById<ImageButton>(R.id.syncBtn)
+        tvLocation = findViewById(R.id.tvLocation)
 
         updateTimeAndDate()
 
         updateTimeRunnable.run()
 
         setupBottomNavigation()
+
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        checkLocationPermissionAndFetch()
 
         val loadingOverlay = findViewById<FrameLayout>(R.id.loadingOverlay)
         val tvNoTasksMessage = findViewById<TextView>(R.id.tvNoTasksMessage)
@@ -105,7 +128,7 @@ class DashboardActivity : AppCompatActivity() {
                         } else {
                             adapter = TaskAdapter(
                                 filteredTasks,
-                                { task ->  },
+                                { task -> },
                                 R.layout.item_task,
                                 { url ->
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
@@ -172,9 +195,15 @@ class DashboardActivity : AppCompatActivity() {
                                     ).show()
 
                                     if (isSynced) {
-                                        val updatedTasks = dbHelper.getAllTasks(this@DashboardActivity)
-                                            .filter { it.taskType.equals("Recently overdue", ignoreCase = true) }
-                                            .toMutableList()
+                                        val updatedTasks =
+                                            dbHelper.getAllTasks(this@DashboardActivity)
+                                                .filter {
+                                                    it.taskType.equals(
+                                                        "Recently overdue",
+                                                        ignoreCase = true
+                                                    )
+                                                }
+                                                .toMutableList()
 
                                         adapter.updateTasks(updatedTasks)
                                     }
@@ -210,9 +239,200 @@ class DashboardActivity : AppCompatActivity() {
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "ReminderWorker",
-            ExistingPeriodicWorkPolicy.REPLACE,
+            ExistingPeriodicWorkPolicy.KEEP,
             workRequest
         )
+
+//        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+//
+//        getLastLocation()
+    }
+
+    private fun checkLocationPermissionAndFetch() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                LOCATION_PERMISSION_REQUEST
+            )
+        } else {
+            fetchLastLocation()
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == LOCATION_PERMISSION_REQUEST && grantResults.isNotEmpty()
+            && grantResults[0] == PackageManager.PERMISSION_GRANTED
+        ) {
+            fetchLastLocation()
+        } else {
+            Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun fetchLastLocation() {
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location: Location? ->
+                if (location != null) {
+                    val lat = location.latitude
+                    val lng = location.longitude
+                    Log.d("LL", "Lat: $lat, Lng: $lng")
+                    fetchStreetNameFromMapbox(lat, lng)
+                } else {
+                    Log.w("Location", "Location is null. Try requesting updated location.")
+                    tvLocation.text = "Location not available"
+                }
+            }
+            .addOnFailureListener {
+                Log.e("Location", "Failed to get location", it)
+                tvLocation.text = "Failed to retrieve location"
+            }
+    }
+
+    private fun fetchStreetNameFromMapbox(lat: Double, lng: Double) {
+        val accessToken = getString(R.string.mapbox_access_token)
+        val url =
+            "https://api.mapbox.com/geocoding/v5/mapbox.places/$lng,$lat.json?access_token=$accessToken"
+
+        val request = Request.Builder().url(url).build()
+        val client = OkHttpClient()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.e("MapboxGeocode", "Geocoding failed: ${e.message}")
+                runOnUiThread {
+                    tvLocation.text = "Error retrieving address"
+                }
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (response.isSuccessful) {
+                    val body = response.body?.string()
+                    try {
+                        val json = JSONObject(body ?: "")
+                        val features = json.getJSONArray("features")
+                        if (features.length() > 0) {
+                            val placeName = features.getJSONObject(0).getString("place_name")
+                            Log.d("MapboxGeocode", "Street Name: $placeName")
+                            runOnUiThread {
+                                tvLocation.text = placeName
+                            }
+                        } else {
+                            runOnUiThread {
+                                tvLocation.text = "Address not found"
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("MapboxGeocode", "JSON Parsing Error", e)
+                        runOnUiThread {
+                            tvLocation.text = "Error parsing address"
+                        }
+                    }
+                } else {
+                    Log.e("MapboxGeocode", "Mapbox error: ${response.code}")
+                    runOnUiThread {
+                        tvLocation.text = "Mapbox error"
+                    }
+                }
+            }
+        })
+    }
+
+    private fun getLastLocation() {
+        if (checkLocationPermission()) {
+            fusedLocationClient.lastLocation
+                .addOnSuccessListener { location: Location? ->
+                    if (location != null) {
+                        val lat = location.latitude
+                        val lng = location.longitude
+                        val accessToken = getString(R.string.mapbox_access_token)
+
+                        Log.d("LL", "Lat: $lat, Lng: $lng")
+
+                        val url =
+                            "https://api.mapbox.com/geocoding/v5/mapbox.places/$lng,$lat.json?access_token=$accessToken"
+
+                        Log.d("MapboxURL", url)
+
+                        val request = Request.Builder()
+                            .url(url)
+                            .build()
+
+                        val client = OkHttpClient()
+                        client.newCall(request).enqueue(object : Callback {
+                            override fun onFailure(call: Call, e: IOException) {
+                                Log.e("MapboxGeocode", "Failed: ${e.message}")
+                            }
+
+                            override fun onResponse(call: Call, response: Response) {
+                                if (response.isSuccessful) {
+                                    val body = response.body?.string()
+                                    if (body != null) {
+                                        try {
+                                            val json = JSONObject(body)
+                                            val features = json.getJSONArray("features")
+                                            if (features.length() > 0) {
+                                                val placeName = features.getJSONObject(0)
+                                                    .getString("place_name")
+                                                Log.d("MapboxGeocode", "Street Name: $placeName")
+
+                                                runOnUiThread {
+                                                    tvLocation.text = placeName
+                                                }
+                                            } else {
+                                                Log.w("MapboxGeocode", "No features found")
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e("MapboxGeocode", "Parsing error", e)
+                                        }
+                                    } else {
+                                        Log.w("MapboxGeocode", "Empty response body")
+                                    }
+                                } else {
+                                    Log.e(
+                                        "MapboxGeocode",
+                                        "Unsuccessful response: ${response.code}"
+                                    )
+                                }
+                            }
+                        })
+                    } else {
+                        Log.e("Location", "Location is null")
+                    }
+                }
+                .addOnFailureListener {
+                    Log.e("Location", "Failed to get location", it)
+                }
+        } else {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                1001
+            )
+        }
+    }
+
+
+    private fun checkLocationPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun updateTimeAndDate() {
@@ -264,7 +484,7 @@ class DashboardActivity : AppCompatActivity() {
 
                 R.id.navigation_profile -> {
                     startActivity(Intent(this, ProfileActivity::class.java))
-                    overridePendingTransition(0,0)
+                    overridePendingTransition(0, 0)
                     return@setOnItemSelectedListener true
                 }
 

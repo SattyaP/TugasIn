@@ -4,5 +4,6 @@
         <domain includeSubdomains="true">127.0.0.1</domain>
         <domain includeSubdomains="true">192.168.201.127</domain>
         <domain includeSubdomains="true">dw8cqwgq-3000.asse.devtunnels.ms</domain>
+        <domain includeSubdomains="true">103.169.186.135</domain>
     </domain-config>
 </network-security-config>

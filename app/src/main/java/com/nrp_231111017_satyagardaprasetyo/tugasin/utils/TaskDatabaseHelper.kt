@@ -74,13 +74,12 @@ class TaskDatabaseHelper(context: Context) : SQLiteOpenHelper(
 
         val course = task.course
 
-        // Correctly assign the taskType to the proper column
         val values = android.content.ContentValues().apply {
             put(TaskDatabaseHelper.COLUMN_NAME, task.name)
             put(TaskDatabaseHelper.COLUMN_URL, task.url)
             put(TaskDatabaseHelper.COLUMN_COURSE, course)
             put(TaskDatabaseHelper.COLUMN_DATE, task.date)
-            put(TaskDatabaseHelper.TASK_TYPE, task.taskType)  // Correctly assign taskType
+            put(TaskDatabaseHelper.TASK_TYPE, task.taskType)
         }
 
         db.insert(TaskDatabaseHelper.TABLE_NAME, null, values)

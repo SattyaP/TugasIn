@@ -4,10 +4,13 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
+        android:value="@string/mapbox_access_token"
         android:name="com.nrp_231111017_satyagardaprasetyo.tugasin.MyApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -20,6 +23,11 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.Nrp_231111017_satyagardaprasetyotugasin"
         tools:targetApi="31">
+
+        <meta-data
+            android:name="com.mapbox.maps.token"
+            android:value="@string/mapbox_access_token" />
+
         <activity
             android:name=".SplashActivity"
             android:exported="true"
