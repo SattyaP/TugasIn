@@ -56,7 +56,9 @@ class TaskDatabaseHelper(context: Context) : SQLiteOpenHelper(
         CREATE TABLE IF NOT EXISTS $TABLE_CREDENTIALS (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT,
-            password TEXT
+            username TEXT,
+            password TEXT,
+            phone TEXT
         )
     """.trimIndent()
         )

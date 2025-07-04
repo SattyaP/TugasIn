@@ -51,6 +51,7 @@ class LoginActivity : AppCompatActivity() {
     private fun saveCredentials(email: String, password: String) {
         val db = dbHelper.writableDatabase
         val values = ContentValues().apply {
+            put("username", email.split("@")[0])
             put("email", email)
             put("password", password)
         }

@@ -14,7 +14,7 @@
         android:background="@color/tugas_blue"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Profile image - overlapping blue background -->
+    <!-- Profile image -->
     <androidx.cardview.widget.CardView
         android:id="@+id/profile_image_container"
         android:layout_width="100dp"
@@ -24,14 +24,16 @@
         app:cardElevation="4dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="parent"
+        android:clickable="true"
+        android:focusable="true">
 
         <ImageView
             android:id="@+id/profile_image"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:scaleType="centerCrop"
             android:contentDescription="Profile picture"
+            android:scaleType="centerCrop"
             android:src="@drawable/avatar_big" />
     </androidx.cardview.widget.CardView>
 
@@ -115,13 +117,12 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Logout Button -->
     <androidx.cardview.widget.CardView
-        android:id="@+id/btn_logout_container"
+        android:id="@+id/btn_edit_profile_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="42dp"
         android:layout_marginEnd="32dp"
         app:cardCornerRadius="8dp"
         app:cardElevation="0dp"
@@ -129,6 +130,54 @@
         app:layout_constraintStart_toStartOf="parent"
         android:focusable="true"
         app:layout_constraintTop_toBottomOf="@+id/stats_container">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/btn_edit_profile"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/button_outline_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="12dp">
+
+            <ImageView
+                android:id="@+id/iv_edit_profile"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginStart="8dp"
+                android:contentDescription="Logout icon"
+                android:src="@drawable/edit_profile"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="@color/black" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="Edit Profile"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/iv_edit_profile"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.cardview.widget.CardView>
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/btn_logout_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginEnd="32dp"
+        app:cardCornerRadius="8dp"
+        app:cardElevation="0dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:focusable="true"
+        app:layout_constraintTop_toBottomOf="@+id/btn_edit_profile_container">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/btn_logout"
@@ -164,6 +213,7 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.cardview.widget.CardView>
 
+    <!-- Bottom Navigation -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNavigation"
         android:layout_width="match_parent"
