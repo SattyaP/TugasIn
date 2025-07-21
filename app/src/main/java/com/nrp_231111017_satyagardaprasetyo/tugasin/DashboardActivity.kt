@@ -205,7 +205,22 @@ class DashboardActivity : AppCompatActivity() {
                                                 }
                                                 .toMutableList()
 
-                                        adapter.updateTasks(updatedTasks)
+                                        if (::adapter.isInitialized) {
+                                            adapter.updateTasks(updatedTasks)
+                                        } else {
+                                            adapter = TaskAdapter(
+                                                updatedTasks,
+                                                { task -> },
+                                                R.layout.item_task,
+                                                { url ->
+                                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                                    startActivity(intent)
+                                                },
+                                                isDashboard = true
+                                            )
+                                            rvTasks.layoutManager = LinearLayoutManager(this@DashboardActivity)
+                                            rvTasks.adapter = adapter
+                                        }
                                     }
                                 }
 

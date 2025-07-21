@@ -94,11 +94,11 @@ class TasksActivity : AppCompatActivity() {
         }
 
 //        TEST
-//        val btn = findViewById<Button>(R.id.btnTestNotification)
-//        btn.setOnClickListener {
-//            val request = OneTimeWorkRequestBuilder<ReminderWorker>().build()
-//            WorkManager.getInstance(applicationContext).enqueue(request)
-//        }
+        val btn = findViewById<Button>(R.id.btnTestNotification)
+        btn.setOnClickListener {
+            val request = OneTimeWorkRequestBuilder<ReminderWorker>().build()
+            WorkManager.getInstance(applicationContext).enqueue(request)
+        }
 
         updateUIReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
@@ -335,7 +335,7 @@ class TasksActivity : AppCompatActivity() {
                 val reminderDate = LocalDate.parse(fullDateStr, dateFormatter)
                 val daysUntilDue = ChronoUnit.DAYS.between(currentDate, reminderDate)
 
-                tvReminderTitle.text = "Upcoming Reminder (H-$daysUntilDue)"
+                tvReminderTitle.text = if (daysUntilDue < 0) "Upcoming Reminder (H+${-daysUntilDue})" else "Upcoming Reminder (H-$daysUntilDue)"
                 tvReminderSubject.text = firstReminder.name
                 tvReminderDate.text = datePart
                 tvReminderTime.text = timePart

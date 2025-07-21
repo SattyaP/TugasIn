@@ -1,6 +1,5 @@
 package com.nrp_231111017_satyagardaprasetyo.tugasin
 
-import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -20,7 +19,6 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var imageView: ImageView
     private val REQUEST_CODE_PICK_IMAGE = 1001
 
-    @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_profile)

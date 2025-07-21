@@ -39,7 +39,6 @@
                 android:layout_height="wrap_content"
                 android:text="Fetching location..."
                 android:textColor="@color/light_gray"
-                android:layout_marginTop="-4dp"
                 android:textSize="14sp"
                 app:layout_constraintTop_toBottomOf="@+id/tvGreeting"
                 app:layout_constraintStart_toStartOf="parent"/>

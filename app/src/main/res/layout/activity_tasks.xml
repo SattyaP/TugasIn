@@ -243,12 +243,12 @@
                 app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
             <!--            TEST-->
-<!--            <Button-->
-<!--                android:id="@+id/btnTestNotification"-->
-<!--                android:layout_width="wrap_content"-->
-<!--                android:layout_height="wrap_content"-->
-<!--                android:layout_marginTop="20dp"-->
-<!--                android:text="Test Notification" />-->
+            <Button
+                android:id="@+id/btnTestNotification"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="Test Notification" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
